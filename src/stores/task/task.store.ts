@@ -1,11 +1,12 @@
 import { create, StateCreator } from "zustand";
 import { v4 as uuidv4 } from "uuid";
 
-import { devtools } from "zustand/middleware";
+import { devtools, persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
 // import { produce } from "immer";
 
 import type { Task, TaskStatus } from "../../interfaces";
+
 interface TaskState {
   draggingTaskId?: string;
   tasks: Record<string, Task>; //{[taskId: string]: Task}
@@ -19,10 +20,15 @@ interface TaskState {
   onTaskDrop: (status: TaskStatus) => void;
 }
 
-const storeAPI: StateCreator<TaskState, [["zustand/immer", never]]> = (
-  set,
-  get,
-) => ({
+const storeAPI: StateCreator<
+  TaskState,
+  [
+    ["zustand/devtools", never],
+    ["zustand/persist", unknown],
+    ["zustand/immer", never],
+  ],
+  []
+> = (set, get) => ({
   draggingTaskId: undefined,
 
   tasks: {
@@ -42,7 +48,7 @@ const storeAPI: StateCreator<TaskState, [["zustand/immer", never]]> = (
 
     set((state) => {
       state.tasks[newTask.id] = newTask;
-    });
+    }, false, "addTask");
 
     //? Requiere npm install immer
     // set(
@@ -61,11 +67,11 @@ const storeAPI: StateCreator<TaskState, [["zustand/immer", never]]> = (
   },
 
   setDraggingTaskId: (taskId: string) => {
-    set({ draggingTaskId: taskId });
+    set({ draggingTaskId: taskId }, false, "setDraggingTaskId");
   },
 
   removeDraggingTaskId: () => {
-    set({ draggingTaskId: undefined });
+    set({ draggingTaskId: undefined }, false, "removeDraggingTaskId");
   },
 
   changeTaskStatus: (taskId: string, status: TaskStatus) => {
@@ -77,7 +83,7 @@ const storeAPI: StateCreator<TaskState, [["zustand/immer", never]]> = (
         ...state.tasks[taskId],
         status,
       };
-    });
+    }, false, "changeTaskStatus");
 
     // set((state) => ({
     //   tasks: {
@@ -96,4 +102,6 @@ const storeAPI: StateCreator<TaskState, [["zustand/immer", never]]> = (
   },
 });
 
-export const useTaskStore = create<TaskState>()(devtools(immer(storeAPI)));
+export const useTaskStore = create<TaskState>()(
+  devtools(persist(immer(storeAPI), { name: "task-store" })),
+);
